@@ -562,7 +562,7 @@ static bool inlist(const struct curl_slist *head,
   DEBUGASSERT(checkfor[thislen-1] != ':');
 
   for(; head; head = head->next) {
-    if(strncasecompare(head->data, checkfor, thislen) &&
+    if(curl_strnequal(head->data, checkfor, thislen) &&
        isheadersep(head->data[thislen]) )
       return TRUE;
   }
