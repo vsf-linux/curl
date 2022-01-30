@@ -42,7 +42,11 @@ struct getout *new_getout(struct OperationConfig *config)
   struct getout *node = calloc(1, sizeof(struct getout));
   struct getout *last = config->url_last;
   if(node) {
+#ifdef __VSF__
+#   define outnum                   (curl_ctx->tool_paramhlp.new_getout.__outnum)
+#else
     static int outnum = 0;
+#endif
 
     /* append this new node last in the list */
     if(last)
@@ -55,6 +59,9 @@ struct getout *new_getout(struct OperationConfig *config)
 
     node->flags = config->default_node_flags;
     node->num = outnum++;
+#ifdef __VSF__
+#   undef outnum
+#endif
   }
   return node;
 }

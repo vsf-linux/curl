@@ -34,8 +34,13 @@
 #ifdef HAVE_ICONV
 
 /* curl tool iconv conversion descriptors */
+#ifdef __VSF__
+#   define inbound_cd               (curl_ctx->tool_convert.__inbound_cd)
+#   define outbound_cd              (curl_ctx->tool_convert.__outbound_cd)
+#else
 static iconv_t inbound_cd  = (iconv_t)-1;
 static iconv_t outbound_cd = (iconv_t)-1;
+#endif
 
 /* set default codesets for iconv */
 #ifndef CURL_ICONV_CODESET_OF_NETWORK

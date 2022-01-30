@@ -40,8 +40,13 @@ static CURLcode randit(struct Curl_easy *data, unsigned int *rnd)
 {
   unsigned int r;
   CURLcode result = CURLE_OK;
+#ifdef __VSF__
+#   define randseed                 (curl_ctx->rand.randit.__randseed)
+#   define seeded                   (curl_ctx->rand.randit.__seeded)
+#else
   static unsigned int randseed;
   static bool seeded = FALSE;
+#endif
 
 #ifdef CURLDEBUG
   char *force_entropy = getenv("CURL_ENTROPY");
@@ -99,6 +104,10 @@ static CURLcode randit(struct Curl_easy *data, unsigned int *rnd)
   r = randseed = randseed * 1103515245 + 12345;
   *rnd = (r << 16) | ((r >> 16) & 0xFFFF);
   return CURLE_OK;
+#ifdef __VSF__
+#   undef randseed
+#   undef seeded
+#endif
 }
 
 /*

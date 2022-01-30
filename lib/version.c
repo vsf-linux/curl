@@ -110,7 +110,11 @@ static void zstd_version(char *buf, size_t bufsz)
 
 char *curl_version(void)
 {
+#ifndef __VSF__
+#   define out                      (curl_ctx->version.curl_version.__out)
+#else
   static char out[300];
+#endif
   char *outp;
   size_t outlen;
   const char *src[VERSION_PARTS];
@@ -292,6 +296,9 @@ char *curl_version(void)
   *outp = 0;
 
   return out;
+#ifndef __VSF__
+#   undef out
+#endif
 }
 
 /* data for curl_version_info
@@ -300,7 +307,7 @@ char *curl_version(void)
    protocol line has its own #if line to make things easier on the eye.
  */
 
-static const char * const protocols[] = {
+const char * const protocols[] = {
 #ifndef CURL_DISABLE_DICT
   "dict",
 #endif
@@ -383,6 +390,9 @@ static const char * const protocols[] = {
   NULL
 };
 
+#ifdef __VSF__
+#   define version_info             (curl_ctx->version.__version_info)
+#else
 static curl_version_info_data version_info = {
   CURLVERSION_NOW,
   LIBCURL_VERSION,
@@ -499,24 +509,41 @@ static curl_version_info_data version_info = {
   NULL, /* Hyper version */
   NULL  /* gsasl version */
 };
+#endif
 
 curl_version_info_data *curl_version_info(CURLversion stamp)
 {
 #if defined(USE_SSH)
+#ifdef __VSF__
+#   define ssh_buffer               (curl_ctx->version.curl_version_info.__ssh_buffer)
+#else
   static char ssh_buffer[80];
 #endif
+#endif
 #ifdef USE_SSL
+#ifdef __VSF__
+#   define ssl_buffer               (curl_ctx->version.curl_version_info.__ssl_buffer)
+#else
 #ifdef CURL_WITH_MULTI_SSL
   static char ssl_buffer[200];
 #else
   static char ssl_buffer[80];
 #endif
 #endif
+#endif
 #ifdef HAVE_BROTLI
+#ifdef __VSF__
+#   define brotli_buffer            (curl_ctx->version.curl_version_info.__brotli_buffer)
+#else
   static char brotli_buffer[80];
 #endif
+#endif
 #ifdef HAVE_ZSTD
+#ifdef __VSF__
+#   define zstd_buffer              (curl_ctx->version.curl_version_info.__zstd_buffer)
+#else
   static char zstd_buffer[80];
+#endif
 #endif
 
 #ifdef USE_SSL
@@ -609,4 +636,18 @@ curl_version_info_data *curl_version_info(CURLversion stamp)
 
   (void)stamp; /* avoid compiler warnings, we don't use this */
   return &version_info;
+#ifdef __VSF__
+#ifdef USE_SSH
+#   undef ssh_buffer
+#endif
+#ifdef USE_SSL
+#   undef ssl_buffer
+#endif
+#ifdef HAVE_BROTLI
+#   undef brotli_buffer
+#endif
+#ifdef HAVE_ZSTD
+#   undef zstd_buffer
+#endif
+#endif
 }

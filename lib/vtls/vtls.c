@@ -224,7 +224,11 @@ int Curl_ssl_backend(void)
 #ifdef USE_SSL
 
 /* "global" init done? */
+#ifdef __VSF__
+#   define init_ssl                 (curl_ctx->vtls.__init_ssl)
+#else
 static bool init_ssl = FALSE;
+#endif
 
 /**
  * Global SSL init
@@ -1343,9 +1347,15 @@ static const struct Curl_ssl *available_backends[] = {
 
 static size_t multissl_version(char *buffer, size_t size)
 {
+#ifdef __VSF__
+#   define selected                 (curl_ctx->vtls.multissl_version.__selected)
+#   define backends                 (curl_ctx->vtls.multissl_version.__backends)
+#   define backends_len             (curl_ctx->vtls.multissl_version.__backends_len)
+#else
   static const struct Curl_ssl *selected;
   static char backends[200];
   static size_t backends_len;
+#endif
   const struct Curl_ssl *current;
 
   current = Curl_ssl == &Curl_ssl_multi ? available_backends[0] : Curl_ssl;
@@ -1383,6 +1393,11 @@ static size_t multissl_version(char *buffer, size_t size)
 
   strcpy(buffer, backends);
   return backends_len;
+#ifdef __VSF__
+#   undef selected
+#   undef backends
+#   undef backends_len
+#endif
 }
 
 static int multissl_setup(const struct Curl_ssl *backend)

@@ -87,8 +87,13 @@
 #include "memdebug.h"
 
 /* true globals -- for curl_global_init() and curl_global_cleanup() */
+#ifdef __VSF__
+#   define initialized              (curl_ctx->easy.__initialized)
+#   define init_flags               (curl_ctx->easy.__init_flags)
+#else
 static unsigned int  initialized;
 static long          init_flags;
+#endif
 
 /*
  * strdup (and other memory functions) is redefined in complicated
@@ -111,11 +116,19 @@ static long          init_flags;
  * If a memory-using function (like curl_getenv) is used before
  * curl_global_init() is called, we need to have these pointers set already.
  */
+#ifdef __VSF__
+#   define Curl_cmalloc             (curl_ctx->easy.__Curl_cmalloc)
+#   define Curl_cfree               (curl_ctx->easy.__Curl_cfree)
+#   define Curl_crealloc            (curl_ctx->easy.__Curl_crealloc)
+#   define Curl_cstrdup             (curl_ctx->easy.__Curl_cstrdup)
+#   define Curl_ccalloc             (curl_ctx->easy.__Curl_ccalloc)
+#else
 curl_malloc_callback Curl_cmalloc = (curl_malloc_callback)malloc;
 curl_free_callback Curl_cfree = (curl_free_callback)free;
 curl_realloc_callback Curl_crealloc = (curl_realloc_callback)realloc;
 curl_strdup_callback Curl_cstrdup = (curl_strdup_callback)system_strdup;
 curl_calloc_callback Curl_ccalloc = (curl_calloc_callback)calloc;
+#endif
 #if defined(WIN32) && defined(UNICODE)
 curl_wcsdup_callback Curl_cwcsdup = Curl_wcsdup;
 #endif
@@ -125,7 +138,11 @@ curl_wcsdup_callback Curl_cwcsdup = Curl_wcsdup;
 #endif
 
 #ifdef DEBUGBUILD
+#ifdef __VSF__
+#   define leakpointer              (curl_ctx->easy.__leakpointer)
+#else
 static char *leakpointer;
+#endif
 #endif
 
 /**
@@ -139,11 +156,19 @@ static CURLcode global_init(long flags, bool memoryfuncs)
 
   if(memoryfuncs) {
     /* Setup the default memory functions here (again) */
+#ifdef __VSF__
+    Curl_cmalloc = (curl_malloc_callback)vsf_heap_malloc;
+    Curl_cfree = (curl_free_callback)vsf_heap_free;
+    Curl_crealloc = (curl_realloc_callback)vsf_heap_realloc;
+    Curl_cstrdup = (curl_strdup_callback)vsf_heap_strdup;
+    Curl_ccalloc = (curl_calloc_callback)vsf_heap_calloc;
+#else
     Curl_cmalloc = (curl_malloc_callback)malloc;
     Curl_cfree = (curl_free_callback)free;
     Curl_crealloc = (curl_realloc_callback)realloc;
     Curl_cstrdup = (curl_strdup_callback)system_strdup;
     Curl_ccalloc = (curl_calloc_callback)calloc;
+#endif
 #if defined(WIN32) && defined(UNICODE)
     Curl_cwcsdup = (curl_wcsdup_callback)_wcsdup;
 #endif

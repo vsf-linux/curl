@@ -34,6 +34,10 @@ bool progress_meter(struct GlobalConfig *global,
                     bool final);
 void progress_finalize(struct per_transfer *per);
 
+#ifdef __VSF__
+#   define all_xfers                (curl_ctx->tool_progress.__all_xfers)
+#else
 extern curl_off_t all_xfers;   /* total number */
+#endif
 
 #endif /* HEADER_CURL_TOOL_PROGRESS_H */

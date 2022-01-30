@@ -44,7 +44,11 @@
 #define NUMT                    2
 
 /* This array will store all of the mutexes available to Mbedtls. */
+#ifdef __VSF__
+#   define mutex_buf                (curl_ctx->mbedtls.__mutex_buf)
+#else
 static MBEDTLS_MUTEX_T *mutex_buf = NULL;
+#endif
 
 int Curl_mbedtlsthreadlock_thread_setup(void)
 {

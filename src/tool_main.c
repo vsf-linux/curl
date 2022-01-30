@@ -237,6 +237,12 @@ int wmain(int argc, wchar_t *argv[])
 int main(int argc, char *argv[])
 #endif
 {
+#ifdef __VSF__
+  if (vsf_linux_curl_init() < 0) {
+    fprintf(stderr, "fail to initialize curl\n");
+    return -1;
+  }
+#endif
   CURLcode result = CURLE_OK;
   struct GlobalConfig global;
   memset(&global, 0, sizeof(global));

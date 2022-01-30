@@ -203,8 +203,14 @@ static curl_off_t VmsSpecialSize(const char *name,
 
 #define BUFFER_SIZE (100*1024)
 
+#ifdef __VSF__
+// defined in tool_operate.h
+//#   define transfers                (curl_ctx->tool_operate.__transfers)
+#   define transfersl               (curl_ctx->tool_operate.__transfersl)
+#else
 struct per_transfer *transfers; /* first node */
 static struct per_transfer *transfersl; /* last node */
+#endif
 
 /* add_per_transfer creates a new 'per_transfer' node in the linked
    list of transfers */
@@ -735,7 +741,11 @@ static CURLcode single_transfer(struct GlobalConfig *global,
   }
 
   while(config->state.urlnode) {
+#ifdef __VSF__
+#   define warn_more_options        (curl_ctx->tool_operate.single_transfer.__warn_more_options)
+#else
     static bool warn_more_options = FALSE;
+#endif
     char *infiles; /* might be a glob pattern */
     struct URLGlob *inglob = state->inglob;
     urlnode = config->state.urlnode;
@@ -2145,6 +2155,9 @@ static CURLcode single_transfer(struct GlobalConfig *global,
       }
     }
     break;
+#ifdef __VSF__
+#   undef warn_more_options
+#endif
   }
 
   if(!*added || result) {
@@ -2154,7 +2167,11 @@ static CURLcode single_transfer(struct GlobalConfig *global,
   return result;
 }
 
+#ifdef __VSF__
+#   define all_added                (curl_ctx->tool_operate.__all_added)
+#else
 static long all_added; /* number of easy handles currently added */
+#endif
 
 /*
  * add_parallel_transfers() sets 'morep' to TRUE if there are more transfers

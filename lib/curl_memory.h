@@ -98,11 +98,19 @@ typedef void *(*curl_calloc_callback)(size_t nmemb, size_t size);
 #define CURL_DID_MEMORY_FUNC_TYPEDEFS
 #endif
 
+#ifdef __VSF__
+#   define Curl_cmalloc             (curl_ctx->easy.__Curl_cmalloc)
+#   define Curl_cfree               (curl_ctx->easy.__Curl_cfree)
+#   define Curl_crealloc            (curl_ctx->easy.__Curl_crealloc)
+#   define Curl_cstrdup             (curl_ctx->easy.__Curl_cstrdup)
+#   define Curl_ccalloc             (curl_ctx->easy.__Curl_ccalloc)
+#else
 extern curl_malloc_callback Curl_cmalloc;
 extern curl_free_callback Curl_cfree;
 extern curl_realloc_callback Curl_crealloc;
 extern curl_strdup_callback Curl_cstrdup;
 extern curl_calloc_callback Curl_ccalloc;
+#endif
 #if defined(WIN32) && defined(UNICODE)
 extern curl_wcsdup_callback Curl_cwcsdup;
 #endif

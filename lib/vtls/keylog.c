@@ -40,7 +40,11 @@
 
 
 /* The fp for the open SSLKEYLOGFILE, or NULL if not open */
+#ifdef __VSF__
+#   define keylog_file_fp           (curl_ctx->keylog.__keylog_file_fp)
+#else
 static FILE *keylog_file_fp;
+#endif
 
 void
 Curl_tls_keylog_open(void)

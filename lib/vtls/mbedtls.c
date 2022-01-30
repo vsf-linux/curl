@@ -96,9 +96,14 @@ struct ssl_backend_data {
 #endif
 
 #if defined(THREADING_SUPPORT)
+#ifdef __VSF__
+#   define ts_entropy               (curl_ctx->mbedtls.__ts_entropy)
+#   define entropy_init_initialized (curl_ctx->mbedtls.__entropy_init_initialized)
+#else
 static mbedtls_entropy_context ts_entropy;
 
 static int entropy_init_initialized = 0;
+#endif
 
 /* start of entropy_init_mutex() */
 static void entropy_init_mutex(mbedtls_entropy_context *ctx)

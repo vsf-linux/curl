@@ -57,8 +57,13 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
 
   if(config->tracetime) {
     struct tm *now;
+#ifdef __VSF__
+#   define epoch_offset             (curl_ctx->tool_cb_dbg.tool_debug_cb.__epoch_offset)
+#   define known_offset             (curl_ctx->tool_cb_dbg.tool_debug_cb.__known_offset)
+#else
     static time_t epoch_offset;
     static int    known_offset;
+#endif
     tv = tvnow();
     if(!known_offset) {
       epoch_offset = time(NULL) - tv.tv_sec;
@@ -69,6 +74,10 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
     now = localtime(&secs);  /* not thread safe but we don't care */
     msnprintf(timebuf, sizeof(timebuf), "%02d:%02d:%02d.%06ld ",
               now->tm_hour, now->tm_min, now->tm_sec, (long)tv.tv_usec);
+#ifdef __VSF__
+#   undef epoch_offset
+#   undef known_offset
+#endif
   }
   else
     timebuf[0] = 0;
@@ -102,8 +111,13 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
     static const char * const s_infotype[] = {
       "*", "<", ">", "{", "}", "{", "}"
     };
+#ifdef __VSF__
+#   define newl                     (curl_ctx->tool_cb_dbg.tool_debug_cb.__newl)
+#   define traced_data              (curl_ctx->tool_cb_dbg.tool_debug_cb.__traced_data)
+#else
     static bool newl = FALSE;
     static bool traced_data = FALSE;
+#endif
 
     switch(type) {
     case CURLINFO_HEADER_OUT:
@@ -160,6 +174,10 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
     }
 
     return 0;
+#ifdef __VSF__
+#   undef newl
+#   undef traced_data
+#endif
   }
 
 #ifdef CURL_DOES_CONVERSIONS

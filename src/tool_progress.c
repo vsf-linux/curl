@@ -141,6 +141,18 @@ static void time2str(char *r, curl_off_t seconds)
   }
 }
 
+#ifdef __VSF__
+#   define all_dltotal              (curl_ctx->tool_progress.__all_dltotal)
+#   define all_ultotal              (curl_ctx->tool_progress.__all_ultotal)
+#   define all_dlalready            (curl_ctx->tool_progress.__all_dlalready)
+#   define all_ulalready            (curl_ctx->tool_progress.__all_ulalready)
+// defined in tool_progress.h
+//#   define all_xfers                (curl_ctx->tool_progress.__all_xfers)
+
+#   define speedindex               (curl_ctx->tool_progress.__speedindex)
+#   define indexwrapped             (curl_ctx->tool_progress.__indexwrapped)
+#   define speedstore               (curl_ctx->tool_progress.__speedstore)
+#else
 static curl_off_t all_dltotal = 0;
 static curl_off_t all_ultotal = 0;
 static curl_off_t all_dlalready = 0;
@@ -157,6 +169,7 @@ struct speedcount {
 static unsigned int speedindex;
 static bool indexwrapped;
 static struct speedcount speedstore[SPEEDCNT];
+#endif
 
 /*
   |DL% UL%  Dled  Uled  Xfers  Live   Qd Total     Current  Left    Speed
@@ -166,8 +179,13 @@ bool progress_meter(struct GlobalConfig *global,
                     struct timeval *start,
                     bool final)
 {
-  static struct timeval stamp;
+#ifdef __VSF__
+#   define stamp_val                (curl_ctx->tool_progress.progress_meter.__stamp)
+#   define header                   (curl_ctx->tool_progress.progress_meter.__header)
+#else
+  static struct timeval stamp_val;
   static bool header = FALSE;
+#endif
   struct timeval now;
   long diff;
 
@@ -175,7 +193,7 @@ bool progress_meter(struct GlobalConfig *global,
     return FALSE;
 
   now = tvnow();
-  diff = tvdiff(now, stamp);
+  diff = tvdiff(now, stamp_val);
 
   if(!header) {
     header = TRUE;
@@ -200,7 +218,7 @@ bool progress_meter(struct GlobalConfig *global,
     curl_off_t all_queued = 0;  /* pending */
     curl_off_t speed = 0;
     unsigned int i;
-    stamp = now;
+    stamp_val = now;
 
     /* first add the amounts of the already completed transfers */
     all_dlnow += all_dlalready;
@@ -314,6 +332,10 @@ bool progress_meter(struct GlobalConfig *global,
     return TRUE;
   }
   return FALSE;
+#ifdef __VSF__
+#   undef stamp_val
+#   undef header
+#endif
 }
 
 void progress_finalize(struct per_transfer *per)

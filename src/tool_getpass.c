@@ -182,8 +182,13 @@ char *getpass_r(const char *prompt, char *buffer, size_t buflen)
 static bool ttyecho(bool enable, int fd)
 {
 #ifdef struct_term
+#ifdef __VSF__
+#   define withecho                 (curl_ctx->tool_getpass.ttyecho.__withecho)
+#   define noecho                   (curl_ctx->tool_getpass.ttyecho.__noecho)
+#else
   static struct_term withecho;
   static struct_term noecho;
+#endif
 #endif
   if(!enable) {
     /* disable echo by extracting the current 'withecho' mode and remove the
@@ -215,6 +220,12 @@ static bool ttyecho(bool enable, int fd)
   return FALSE; /* not enabled */
 #endif
   return TRUE; /* enabled */
+#ifdef struct_term
+#ifdef __VSF__
+#   undef withecho
+#   undef noecho
+#endif
+#endif
 }
 
 char *getpass_r(const char *prompt, /* prompt to display */

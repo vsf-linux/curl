@@ -1,0 +1,679 @@
+ include/curl/curl.h           |  4 ++++
+ lib/curl_memory.h             |  8 ++++++++
+ lib/curl_setup.h              |  4 ++++
+ lib/easy.c                    | 25 +++++++++++++++++++++++++
+ lib/rand.c                    |  9 +++++++++
+ lib/version.c                 | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ lib/vtls/keylog.c             |  4 ++++
+ lib/vtls/mbedtls.c            |  5 +++++
+ lib/vtls/mbedtls_threadlock.c |  4 ++++
+ lib/vtls/vtls.c               | 15 +++++++++++++++
+ src/tool_cb_dbg.c             | 18 ++++++++++++++++++
+ src/tool_convert.c            |  5 +++++
+ src/tool_getpass.c            | 11 +++++++++++
+ src/tool_main.c               |  6 ++++++
+ src/tool_operate.c            | 17 +++++++++++++++++
+ src/tool_operate.h            |  4 ++++
+ src/tool_paramhlp.c           |  7 +++++++
+ src/tool_progress.c           | 28 +++++++++++++++++++++++++---
+ src/tool_progress.h           |  4 ++++
+ 19 files changed, 217 insertions(+), 4 deletions(-)
+
+diff --git a/include/curl/curl.h b/include/curl/curl.h
+index 7b69ce2d6..cd261c50d 100644
+--- a/include/curl/curl.h
++++ b/include/curl/curl.h
+@@ -3100,4 +3100,8 @@ CURL_EXTERN CURLcode curl_easy_pause(CURL *handle, int bitmask);
+ #endif /* __STDC__ >= 1 */
+ #endif /* gcc >= 4.3 && !__cplusplus */
+ 
++#ifdef __VSF__
++#   include "curl_port_vsf.h"
++#endif
++
+ #endif /* CURLINC_CURL_H */
+diff --git a/lib/curl_memory.h b/lib/curl_memory.h
+index 580629063..98ae02062 100644
+--- a/lib/curl_memory.h
++++ b/lib/curl_memory.h
+@@ -98,11 +98,19 @@ typedef void *(*curl_calloc_callback)(size_t nmemb, size_t size);
+ #define CURL_DID_MEMORY_FUNC_TYPEDEFS
+ #endif
+ 
++#ifdef __VSF__
++#   define Curl_cmalloc             (curl_ctx->easy.__Curl_cmalloc)
++#   define Curl_cfree               (curl_ctx->easy.__Curl_cfree)
++#   define Curl_crealloc            (curl_ctx->easy.__Curl_crealloc)
++#   define Curl_cstrdup             (curl_ctx->easy.__Curl_cstrdup)
++#   define Curl_ccalloc             (curl_ctx->easy.__Curl_ccalloc)
++#else
+ extern curl_malloc_callback Curl_cmalloc;
+ extern curl_free_callback Curl_cfree;
+ extern curl_realloc_callback Curl_crealloc;
+ extern curl_strdup_callback Curl_cstrdup;
+ extern curl_calloc_callback Curl_ccalloc;
++#endif
+ #if defined(WIN32) && defined(UNICODE)
+ extern curl_wcsdup_callback Curl_cwcsdup;
+ #endif
+diff --git a/lib/curl_setup.h b/lib/curl_setup.h
+index 61384cdff..05971206f 100644
+--- a/lib/curl_setup.h
++++ b/lib/curl_setup.h
+@@ -26,6 +26,10 @@
+ #define CURL_NO_OLDIES
+ #endif
+ 
++#ifdef __VSF__
++#   include "config_vsf.h"
++#endif
++
+ /*
+  * Disable Visual Studio warnings:
+  * 4127 "conditional expression is constant"
+diff --git a/lib/easy.c b/lib/easy.c
+index 20293a710..a57bf5553 100644
+--- a/lib/easy.c
++++ b/lib/easy.c
+@@ -87,8 +87,13 @@
+ #include "memdebug.h"
+ 
+ /* true globals -- for curl_global_init() and curl_global_cleanup() */
++#ifdef __VSF__
++#   define initialized              (curl_ctx->easy.__initialized)
++#   define init_flags               (curl_ctx->easy.__init_flags)
++#else
+ static unsigned int  initialized;
+ static long          init_flags;
++#endif
+ 
+ /*
+  * strdup (and other memory functions) is redefined in complicated
+@@ -111,11 +116,19 @@ static long          init_flags;
+  * If a memory-using function (like curl_getenv) is used before
+  * curl_global_init() is called, we need to have these pointers set already.
+  */
++#ifdef __VSF__
++#   define Curl_cmalloc             (curl_ctx->easy.__Curl_cmalloc)
++#   define Curl_cfree               (curl_ctx->easy.__Curl_cfree)
++#   define Curl_crealloc            (curl_ctx->easy.__Curl_crealloc)
++#   define Curl_cstrdup             (curl_ctx->easy.__Curl_cstrdup)
++#   define Curl_ccalloc             (curl_ctx->easy.__Curl_ccalloc)
++#else
+ curl_malloc_callback Curl_cmalloc = (curl_malloc_callback)malloc;
+ curl_free_callback Curl_cfree = (curl_free_callback)free;
+ curl_realloc_callback Curl_crealloc = (curl_realloc_callback)realloc;
+ curl_strdup_callback Curl_cstrdup = (curl_strdup_callback)system_strdup;
+ curl_calloc_callback Curl_ccalloc = (curl_calloc_callback)calloc;
++#endif
+ #if defined(WIN32) && defined(UNICODE)
+ curl_wcsdup_callback Curl_cwcsdup = Curl_wcsdup;
+ #endif
+@@ -125,8 +138,12 @@ curl_wcsdup_callback Curl_cwcsdup = Curl_wcsdup;
+ #endif
+ 
+ #ifdef DEBUGBUILD
++#ifdef __VSF__
++#   define leakpointer              (curl_ctx->easy.__leakpointer)
++#else
+ static char *leakpointer;
+ #endif
++#endif
+ 
+ /**
+  * curl_global_init() globally initializes curl given a bitwise set of the
+@@ -139,11 +156,19 @@ static CURLcode global_init(long flags, bool memoryfuncs)
+ 
+   if(memoryfuncs) {
+     /* Setup the default memory functions here (again) */
++#ifdef __VSF__
++    Curl_cmalloc = (curl_malloc_callback)vsf_heap_malloc;
++    Curl_cfree = (curl_free_callback)vsf_heap_free;
++    Curl_crealloc = (curl_realloc_callback)vsf_heap_realloc;
++    Curl_cstrdup = (curl_strdup_callback)vsf_heap_strdup;
++    Curl_ccalloc = (curl_calloc_callback)vsf_heap_calloc;
++#else
+     Curl_cmalloc = (curl_malloc_callback)malloc;
+     Curl_cfree = (curl_free_callback)free;
+     Curl_crealloc = (curl_realloc_callback)realloc;
+     Curl_cstrdup = (curl_strdup_callback)system_strdup;
+     Curl_ccalloc = (curl_calloc_callback)calloc;
++#endif
+ #if defined(WIN32) && defined(UNICODE)
+     Curl_cwcsdup = (curl_wcsdup_callback)_wcsdup;
+ #endif
+diff --git a/lib/rand.c b/lib/rand.c
+index 8f2c1ba29..cf80f2a8c 100644
+--- a/lib/rand.c
++++ b/lib/rand.c
+@@ -40,8 +40,13 @@ static CURLcode randit(struct Curl_easy *data, unsigned int *rnd)
+ {
+   unsigned int r;
+   CURLcode result = CURLE_OK;
++#ifdef __VSF__
++#   define randseed                 (curl_ctx->rand.randit.__randseed)
++#   define seeded                   (curl_ctx->rand.randit.__seeded)
++#else
+   static unsigned int randseed;
+   static bool seeded = FALSE;
++#endif
+ 
+ #ifdef CURLDEBUG
+   char *force_entropy = getenv("CURL_ENTROPY");
+@@ -99,6 +104,10 @@ static CURLcode randit(struct Curl_easy *data, unsigned int *rnd)
+   r = randseed = randseed * 1103515245 + 12345;
+   *rnd = (r << 16) | ((r >> 16) & 0xFFFF);
+   return CURLE_OK;
++#ifdef __VSF__
++#   undef randseed
++#   undef seeded
++#endif
+ }
+ 
+ /*
+diff --git a/lib/version.c b/lib/version.c
+index c84ef85fb..318a04541 100644
+--- a/lib/version.c
++++ b/lib/version.c
+@@ -110,7 +110,11 @@ static void zstd_version(char *buf, size_t bufsz)
+ 
+ char *curl_version(void)
+ {
++#ifndef __VSF__
++#   define out                      (curl_ctx->version.curl_version.__out)
++#else
+   static char out[300];
++#endif
+   char *outp;
+   size_t outlen;
+   const char *src[VERSION_PARTS];
+@@ -292,6 +296,9 @@ char *curl_version(void)
+   *outp = 0;
+ 
+   return out;
++#ifndef __VSF__
++#   undef out
++#endif
+ }
+ 
+ /* data for curl_version_info
+@@ -300,7 +307,7 @@ char *curl_version(void)
+    protocol line has its own #if line to make things easier on the eye.
+  */
+ 
+-static const char * const protocols[] = {
++const char * const protocols[] = {
+ #ifndef CURL_DISABLE_DICT
+   "dict",
+ #endif
+@@ -383,6 +390,9 @@ static const char * const protocols[] = {
+   NULL
+ };
+ 
++#ifdef __VSF__
++#   define version_info             (curl_ctx->version.__version_info)
++#else
+ static curl_version_info_data version_info = {
+   CURLVERSION_NOW,
+   LIBCURL_VERSION,
+@@ -499,25 +509,42 @@ static curl_version_info_data version_info = {
+   NULL, /* Hyper version */
+   NULL  /* gsasl version */
+ };
++#endif
+ 
+ curl_version_info_data *curl_version_info(CURLversion stamp)
+ {
+ #if defined(USE_SSH)
++#ifdef __VSF__
++#   define ssh_buffer               (curl_ctx->version.curl_version_info.__ssh_buffer)
++#else
+   static char ssh_buffer[80];
+ #endif
++#endif
+ #ifdef USE_SSL
++#ifdef __VSF__
++#   define ssl_buffer               (curl_ctx->version.curl_version_info.__ssl_buffer)
++#else
+ #ifdef CURL_WITH_MULTI_SSL
+   static char ssl_buffer[200];
+ #else
+   static char ssl_buffer[80];
+ #endif
+ #endif
++#endif
+ #ifdef HAVE_BROTLI
++#ifdef __VSF__
++#   define brotli_buffer            (curl_ctx->version.curl_version_info.__brotli_buffer)
++#else
+   static char brotli_buffer[80];
+ #endif
++#endif
+ #ifdef HAVE_ZSTD
++#ifdef __VSF__
++#   define zstd_buffer              (curl_ctx->version.curl_version_info.__zstd_buffer)
++#else
+   static char zstd_buffer[80];
+ #endif
++#endif
+ 
+ #ifdef USE_SSL
+   Curl_ssl_version(ssl_buffer, sizeof(ssl_buffer));
+@@ -609,4 +636,18 @@ curl_version_info_data *curl_version_info(CURLversion stamp)
+ 
+   (void)stamp; /* avoid compiler warnings, we don't use this */
+   return &version_info;
++#ifdef __VSF__
++#ifdef USE_SSH
++#   undef ssh_buffer
++#endif
++#ifdef USE_SSL
++#   undef ssl_buffer
++#endif
++#ifdef HAVE_BROTLI
++#   undef brotli_buffer
++#endif
++#ifdef HAVE_ZSTD
++#   undef zstd_buffer
++#endif
++#endif
+ }
+diff --git a/lib/vtls/keylog.c b/lib/vtls/keylog.c
+index a45945f8f..026e694de 100644
+--- a/lib/vtls/keylog.c
++++ b/lib/vtls/keylog.c
+@@ -40,7 +40,11 @@
+ 
+ 
+ /* The fp for the open SSLKEYLOGFILE, or NULL if not open */
++#ifdef __VSF__
++#   define keylog_file_fp           (curl_ctx->keylog.__keylog_file_fp)
++#else
+ static FILE *keylog_file_fp;
++#endif
+ 
+ void
+ Curl_tls_keylog_open(void)
+diff --git a/lib/vtls/mbedtls.c b/lib/vtls/mbedtls.c
+index 1d209b273..252a63e26 100644
+--- a/lib/vtls/mbedtls.c
++++ b/lib/vtls/mbedtls.c
+@@ -96,9 +96,14 @@ struct ssl_backend_data {
+ #endif
+ 
+ #if defined(THREADING_SUPPORT)
++#ifdef __VSF__
++#   define ts_entropy               (curl_ctx->mbedtls.__ts_entropy)
++#   define entropy_init_initialized (curl_ctx->mbedtls.__entropy_init_initialized)
++#else
+ static mbedtls_entropy_context ts_entropy;
+ 
+ static int entropy_init_initialized = 0;
++#endif
+ 
+ /* start of entropy_init_mutex() */
+ static void entropy_init_mutex(mbedtls_entropy_context *ctx)
+diff --git a/lib/vtls/mbedtls_threadlock.c b/lib/vtls/mbedtls_threadlock.c
+index 751755c23..b21219299 100644
+--- a/lib/vtls/mbedtls_threadlock.c
++++ b/lib/vtls/mbedtls_threadlock.c
+@@ -44,7 +44,11 @@
+ #define NUMT                    2
+ 
+ /* This array will store all of the mutexes available to Mbedtls. */
++#ifdef __VSF__
++#   define mutex_buf                (curl_ctx->mbedtls.__mutex_buf)
++#else
+ static MBEDTLS_MUTEX_T *mutex_buf = NULL;
++#endif
+ 
+ int Curl_mbedtlsthreadlock_thread_setup(void)
+ {
+diff --git a/lib/vtls/vtls.c b/lib/vtls/vtls.c
+index 6007bbba0..ada9dc656 100644
+--- a/lib/vtls/vtls.c
++++ b/lib/vtls/vtls.c
+@@ -224,7 +224,11 @@ int Curl_ssl_backend(void)
+ #ifdef USE_SSL
+ 
+ /* "global" init done? */
++#ifdef __VSF__
++#   define init_ssl                 (curl_ctx->vtls.__init_ssl)
++#else
+ static bool init_ssl = FALSE;
++#endif
+ 
+ /**
+  * Global SSL init
+@@ -1343,9 +1347,15 @@ static const struct Curl_ssl *available_backends[] = {
+ 
+ static size_t multissl_version(char *buffer, size_t size)
+ {
++#ifdef __VSF__
++#   define selected                 (curl_ctx->vtls.multissl_version.__selected)
++#   define backends                 (curl_ctx->vtls.multissl_version.__backends)
++#   define backends_len             (curl_ctx->vtls.multissl_version.__backends_len)
++#else
+   static const struct Curl_ssl *selected;
+   static char backends[200];
+   static size_t backends_len;
++#endif
+   const struct Curl_ssl *current;
+ 
+   current = Curl_ssl == &Curl_ssl_multi ? available_backends[0] : Curl_ssl;
+@@ -1383,6 +1393,11 @@ static size_t multissl_version(char *buffer, size_t size)
+ 
+   strcpy(buffer, backends);
+   return backends_len;
++#ifdef __VSF__
++#   undef selected
++#   undef backends
++#   undef backends_len
++#endif
+ }
+ 
+ static int multissl_setup(const struct Curl_ssl *backend)
+diff --git a/src/tool_cb_dbg.c b/src/tool_cb_dbg.c
+index 6e82e3852..0e949a18f 100644
+--- a/src/tool_cb_dbg.c
++++ b/src/tool_cb_dbg.c
+@@ -57,8 +57,13 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
+ 
+   if(config->tracetime) {
+     struct tm *now;
++#ifdef __VSF__
++#   define epoch_offset             (curl_ctx->tool_cb_dbg.tool_debug_cb.__epoch_offset)
++#   define known_offset             (curl_ctx->tool_cb_dbg.tool_debug_cb.__known_offset)
++#else
+     static time_t epoch_offset;
+     static int    known_offset;
++#endif
+     tv = tvnow();
+     if(!known_offset) {
+       epoch_offset = time(NULL) - tv.tv_sec;
+@@ -69,6 +74,10 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
+     now = localtime(&secs);  /* not thread safe but we don't care */
+     msnprintf(timebuf, sizeof(timebuf), "%02d:%02d:%02d.%06ld ",
+               now->tm_hour, now->tm_min, now->tm_sec, (long)tv.tv_usec);
++#ifdef __VSF__
++#   undef epoch_offset
++#   undef known_offset
++#endif
+   }
+   else
+     timebuf[0] = 0;
+@@ -102,8 +111,13 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
+     static const char * const s_infotype[] = {
+       "*", "<", ">", "{", "}", "{", "}"
+     };
++#ifdef __VSF__
++#   define newl                     (curl_ctx->tool_cb_dbg.tool_debug_cb.__newl)
++#   define traced_data              (curl_ctx->tool_cb_dbg.tool_debug_cb.__traced_data)
++#else
+     static bool newl = FALSE;
+     static bool traced_data = FALSE;
++#endif
+ 
+     switch(type) {
+     case CURLINFO_HEADER_OUT:
+@@ -160,6 +174,10 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
+     }
+ 
+     return 0;
++#ifdef __VSF__
++#   undef newl
++#   undef traced_data
++#endif
+   }
+ 
+ #ifdef CURL_DOES_CONVERSIONS
+diff --git a/src/tool_convert.c b/src/tool_convert.c
+index 04818e9a6..a213d528d 100644
+--- a/src/tool_convert.c
++++ b/src/tool_convert.c
+@@ -34,8 +34,13 @@
+ #ifdef HAVE_ICONV
+ 
+ /* curl tool iconv conversion descriptors */
++#ifdef __VSF__
++#   define inbound_cd               (curl_ctx->tool_convert.__inbound_cd)
++#   define outbound_cd              (curl_ctx->tool_convert.__outbound_cd)
++#else
+ static iconv_t inbound_cd  = (iconv_t)-1;
+ static iconv_t outbound_cd = (iconv_t)-1;
++#endif
+ 
+ /* set default codesets for iconv */
+ #ifndef CURL_ICONV_CODESET_OF_NETWORK
+diff --git a/src/tool_getpass.c b/src/tool_getpass.c
+index 4c50a12d9..44b200e34 100644
+--- a/src/tool_getpass.c
++++ b/src/tool_getpass.c
+@@ -182,8 +182,13 @@ char *getpass_r(const char *prompt, char *buffer, size_t buflen)
+ static bool ttyecho(bool enable, int fd)
+ {
+ #ifdef struct_term
++#ifdef __VSF__
++#   define withecho                 (curl_ctx->tool_getpass.ttyecho.__withecho)
++#   define noecho                   (curl_ctx->tool_getpass.ttyecho.__noecho)
++#else
+   static struct_term withecho;
+   static struct_term noecho;
++#endif
+ #endif
+   if(!enable) {
+     /* disable echo by extracting the current 'withecho' mode and remove the
+@@ -215,6 +220,12 @@ static bool ttyecho(bool enable, int fd)
+   return FALSE; /* not enabled */
+ #endif
+   return TRUE; /* enabled */
++#ifdef struct_term
++#ifdef __VSF__
++#   undef withecho
++#   undef noecho
++#endif
++#endif
+ }
+ 
+ char *getpass_r(const char *prompt, /* prompt to display */
+diff --git a/src/tool_main.c b/src/tool_main.c
+index 7db2e9359..6068fa3b0 100644
+--- a/src/tool_main.c
++++ b/src/tool_main.c
+@@ -237,6 +237,12 @@ int wmain(int argc, wchar_t *argv[])
+ int main(int argc, char *argv[])
+ #endif
+ {
++#ifdef __VSF__
++  if (vsf_linux_curl_init() < 0) {
++    fprintf(stderr, "fail to initialize curl\n");
++    return -1;
++  }
++#endif
+   CURLcode result = CURLE_OK;
+   struct GlobalConfig global;
+   memset(&global, 0, sizeof(global));
+diff --git a/src/tool_operate.c b/src/tool_operate.c
+index fe2c43b55..ab09a65f1 100644
+--- a/src/tool_operate.c
++++ b/src/tool_operate.c
+@@ -203,8 +203,14 @@ static curl_off_t VmsSpecialSize(const char *name,
+ 
+ #define BUFFER_SIZE (100*1024)
+ 
++#ifdef __VSF__
++// defined in tool_operate.h
++//#   define transfers                (curl_ctx->tool_operate.__transfers)
++#   define transfersl               (curl_ctx->tool_operate.__transfersl)
++#else
+ struct per_transfer *transfers; /* first node */
+ static struct per_transfer *transfersl; /* last node */
++#endif
+ 
+ /* add_per_transfer creates a new 'per_transfer' node in the linked
+    list of transfers */
+@@ -735,7 +741,11 @@ static CURLcode single_transfer(struct GlobalConfig *global,
+   }
+ 
+   while(config->state.urlnode) {
++#ifdef __VSF__
++#   define warn_more_options        (curl_ctx->tool_operate.single_transfer.__warn_more_options)
++#else
+     static bool warn_more_options = FALSE;
++#endif
+     char *infiles; /* might be a glob pattern */
+     struct URLGlob *inglob = state->inglob;
+     urlnode = config->state.urlnode;
+@@ -2145,6 +2155,9 @@ static CURLcode single_transfer(struct GlobalConfig *global,
+       }
+     }
+     break;
++#ifdef __VSF__
++#   undef warn_more_options
++#endif
+   }
+ 
+   if(!*added || result) {
+@@ -2154,7 +2167,11 @@ static CURLcode single_transfer(struct GlobalConfig *global,
+   return result;
+ }
+ 
++#ifdef __VSF__
++#   define all_added                (curl_ctx->tool_operate.__all_added)
++#else
+ static long all_added; /* number of easy handles currently added */
++#endif
+ 
+ /*
+  * add_parallel_transfers() sets 'morep' to TRUE if there are more transfers
+diff --git a/src/tool_operate.h b/src/tool_operate.h
+index 61994052f..eccb553a3 100644
+--- a/src/tool_operate.h
++++ b/src/tool_operate.h
+@@ -76,6 +76,10 @@ struct per_transfer {
+ 
+ CURLcode operate(struct GlobalConfig *config, int argc, argv_item_t argv[]);
+ 
++#ifdef __VSF__
++#   define transfers                (curl_ctx->tool_operate.__transfers)
++#else
+ extern struct per_transfer *transfers; /* first node */
++#endif
+ 
+ #endif /* HEADER_CURL_TOOL_OPERATE_H */
+diff --git a/src/tool_paramhlp.c b/src/tool_paramhlp.c
+index 8ac6cf53e..589545c60 100644
+--- a/src/tool_paramhlp.c
++++ b/src/tool_paramhlp.c
+@@ -42,7 +42,11 @@ struct getout *new_getout(struct OperationConfig *config)
+   struct getout *node = calloc(1, sizeof(struct getout));
+   struct getout *last = config->url_last;
+   if(node) {
++#ifdef __VSF__
++#   define outnum                   (curl_ctx->tool_paramhlp.new_getout.__outnum)
++#else
+     static int outnum = 0;
++#endif
+ 
+     /* append this new node last in the list */
+     if(last)
+@@ -55,6 +59,9 @@ struct getout *new_getout(struct OperationConfig *config)
+ 
+     node->flags = config->default_node_flags;
+     node->num = outnum++;
++#ifdef __VSF__
++#   undef outnum
++#endif
+   }
+   return node;
+ }
+diff --git a/src/tool_progress.c b/src/tool_progress.c
+index 031f8b8d4..1358046e8 100644
+--- a/src/tool_progress.c
++++ b/src/tool_progress.c
+@@ -141,6 +141,18 @@ static void time2str(char *r, curl_off_t seconds)
+   }
+ }
+ 
++#ifdef __VSF__
++#   define all_dltotal              (curl_ctx->tool_progress.__all_dltotal)
++#   define all_ultotal              (curl_ctx->tool_progress.__all_ultotal)
++#   define all_dlalready            (curl_ctx->tool_progress.__all_dlalready)
++#   define all_ulalready            (curl_ctx->tool_progress.__all_ulalready)
++// defined in tool_progress.h
++//#   define all_xfers                (curl_ctx->tool_progress.__all_xfers)
++
++#   define speedindex               (curl_ctx->tool_progress.__speedindex)
++#   define indexwrapped             (curl_ctx->tool_progress.__indexwrapped)
++#   define speedstore               (curl_ctx->tool_progress.__speedstore)
++#else
+ static curl_off_t all_dltotal = 0;
+ static curl_off_t all_ultotal = 0;
+ static curl_off_t all_dlalready = 0;
+@@ -157,6 +169,7 @@ struct speedcount {
+ static unsigned int speedindex;
+ static bool indexwrapped;
+ static struct speedcount speedstore[SPEEDCNT];
++#endif
+ 
+ /*
+   |DL% UL%  Dled  Uled  Xfers  Live   Qd Total     Current  Left    Speed
+@@ -166,8 +179,13 @@ bool progress_meter(struct GlobalConfig *global,
+                     struct timeval *start,
+                     bool final)
+ {
+-  static struct timeval stamp;
++#ifdef __VSF__
++#   define stamp_val                (curl_ctx->tool_progress.progress_meter.__stamp)
++#   define header                   (curl_ctx->tool_progress.progress_meter.__header)
++#else
++  static struct timeval stamp_val;
+   static bool header = FALSE;
++#endif
+   struct timeval now;
+   long diff;
+ 
+@@ -175,7 +193,7 @@ bool progress_meter(struct GlobalConfig *global,
+     return FALSE;
+ 
+   now = tvnow();
+-  diff = tvdiff(now, stamp);
++  diff = tvdiff(now, stamp_val);
+ 
+   if(!header) {
+     header = TRUE;
+@@ -200,7 +218,7 @@ bool progress_meter(struct GlobalConfig *global,
+     curl_off_t all_queued = 0;  /* pending */
+     curl_off_t speed = 0;
+     unsigned int i;
+-    stamp = now;
++    stamp_val = now;
+ 
+     /* first add the amounts of the already completed transfers */
+     all_dlnow += all_dlalready;
+@@ -314,6 +332,10 @@ bool progress_meter(struct GlobalConfig *global,
+     return TRUE;
+   }
+   return FALSE;
++#ifdef __VSF__
++#   undef stamp_val
++#   undef header
++#endif
+ }
+ 
+ void progress_finalize(struct per_transfer *per)
+diff --git a/src/tool_progress.h b/src/tool_progress.h
+index da9bdedd2..77b73cfd8 100644
+--- a/src/tool_progress.h
++++ b/src/tool_progress.h
+@@ -34,6 +34,10 @@ bool progress_meter(struct GlobalConfig *global,
+                     bool final);
+ void progress_finalize(struct per_transfer *per);
+ 
++#ifdef __VSF__
++#   define all_xfers                (curl_ctx->tool_progress.__all_xfers)
++#else
+ extern curl_off_t all_xfers;   /* total number */
++#endif
+ 
+ #endif /* HEADER_CURL_TOOL_PROGRESS_H */
