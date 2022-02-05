@@ -3100,4 +3100,8 @@ CURL_EXTERN CURLcode curl_easy_pause(CURL *handle, int bitmask);
 #endif /* __STDC__ >= 1 */
 #endif /* gcc >= 4.3 && !__cplusplus */
 
+#ifdef __VSF__
+#   include "curl_port_vsf.h"
+#endif
+
 #endif /* CURLINC_CURL_H */

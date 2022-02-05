@@ -1,3 +1,4 @@
+ include/curl/curl.h           | 4 ++++
  lib/curl_memory.h             |  17 ++++
  lib/curl_setup.h              |   4 +
  lib/easy.c                    |  46 ++++++++++
@@ -15,8 +16,21 @@
  src/tool_paramhlp.c           |  17 ++++
  src/tool_progress.c           |  29 ++++++-
  src/tool_progress.h           |  28 +++++++
- 17 files changed, 531 insertions(+), 3 deletions(-)
+ 18 files changed, 535 insertions(+), 3 deletions(-)
 
+diff --git a/include/curl/curl.h b/include/curl/curl.h
+index 7b69ce2d6..cd261c50d 100644
+--- a/include/curl/curl.h
++++ b/include/curl/curl.h
+@@ -3100,4 +3100,8 @@ CURL_EXTERN CURLcode curl_easy_pause(CURL *handle, int bitmask);
+ #endif /* __STDC__ >= 1 */
+ #endif /* gcc >= 4.3 && !__cplusplus */
+ 
++#ifdef __VSF__
++#   include "curl_port_vsf.h"
++#endif
++
+ #endif /* CURLINC_CURL_H */
 diff --git a/lib/curl_memory.h b/lib/curl_memory.h
 index 580629063..01c1d9c69 100644
 --- a/lib/curl_memory.h
