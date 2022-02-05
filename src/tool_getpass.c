@@ -63,6 +63,27 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
+#ifdef __VSF__
+struct __curl_tool_getpass_ctx {
+#ifdef HAVE_TERMIOS_H
+#  define struct_term  struct termios
+#elif defined(HAVE_TERMIO_H)
+#  define struct_term  struct termio
+#else
+#  undef  struct_term
+#endif
+#ifdef struct_term
+    struct {
+        struct_term withecho;
+        struct_term noecho;
+    } ttyecho;
+#undef struct_term
+#endif
+};
+define_vsf_curl_mod(curl_tool_getpass, sizeof(struct __curl_tool_getpass_ctx), VSF_CURL_MOD_TOOL_GETPASS, NULL)
+#   define curl_tool_getpass_ctx    ((struct __curl_tool_getpass_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_tool_getpass)))
+#endif
+
 #ifdef __VMS
 /* VMS implementation */
 char *getpass_r(const char *prompt, char *buffer, size_t buflen)
@@ -182,8 +203,13 @@ char *getpass_r(const char *prompt, char *buffer, size_t buflen)
 static bool ttyecho(bool enable, int fd)
 {
 #ifdef struct_term
+#ifdef __VSF__
+#   define withecho                 (curl_tool_getpass_ctx->ttyecho.withecho)
+#   define noecho                   (curl_tool_getpass_ctx->ttyecho.noecho)
+#else
   static struct_term withecho;
   static struct_term noecho;
+#endif
 #endif
   if(!enable) {
     /* disable echo by extracting the current 'withecho' mode and remove the
@@ -215,6 +241,12 @@ static bool ttyecho(bool enable, int fd)
   return FALSE; /* not enabled */
 #endif
   return TRUE; /* enabled */
+#ifdef struct_term
+#ifdef __VSF__
+#   undef withecho
+#   undef noecho
+#endif
+#endif
 }
 
 char *getpass_r(const char *prompt, /* prompt to display */

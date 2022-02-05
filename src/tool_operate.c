@@ -85,6 +85,10 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
+#ifdef __VSF__
+define_vsf_curl_mod(curl_tool_operate, sizeof(struct __curl_tool_operate_ctx), VSF_CURL_MOD_TOOL_OPERATE, NULL)
+#endif
+
 #ifdef CURLDEBUG
 /* libcurl's debug builds provide an extra function */
 CURLcode curl_easy_perform_ev(CURL *easy);
@@ -203,8 +207,12 @@ static curl_off_t VmsSpecialSize(const char *name,
 
 #define BUFFER_SIZE (100*1024)
 
+#ifdef __VSF__
+#   define transfersl               (curl_tool_operate_ctx->transfersl)
+#else
 struct per_transfer *transfers; /* first node */
 static struct per_transfer *transfersl; /* last node */
+#endif
 
 /* add_per_transfer creates a new 'per_transfer' node in the linked
    list of transfers */
@@ -735,7 +743,11 @@ static CURLcode single_transfer(struct GlobalConfig *global,
   }
 
   while(config->state.urlnode) {
+#ifdef __VSF__
+#   define warn_more_options        (curl_tool_operate_ctx->single_transfer.warn_more_options)
+#else
     static bool warn_more_options = FALSE;
+#endif
     char *infiles; /* might be a glob pattern */
     struct URLGlob *inglob = state->inglob;
     urlnode = config->state.urlnode;
@@ -2145,6 +2157,9 @@ static CURLcode single_transfer(struct GlobalConfig *global,
       }
     }
     break;
+#ifdef __VSF__
+#   undef warn_more_options
+#endif
   }
 
   if(!*added || result) {
@@ -2154,7 +2169,11 @@ static CURLcode single_transfer(struct GlobalConfig *global,
   return result;
 }
 
+#ifdef __VSF__
+#   define all_added                (curl_tool_operate_ctx->all_added)
+#else
 static long all_added; /* number of easy handles currently added */
+#endif
 
 /*
  * add_parallel_transfers() sets 'morep' to TRUE if there are more transfers

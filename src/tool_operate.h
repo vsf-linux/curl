@@ -76,6 +76,20 @@ struct per_transfer {
 
 CURLcode operate(struct GlobalConfig *config, int argc, argv_item_t argv[]);
 
+#ifdef __VSF__
+struct __curl_tool_operate_ctx {
+    struct per_transfer *transfers;
+    struct per_transfer *transfersl;
+    long all_added;
+    struct {
+        bool warn_more_options;
+    } single_transfer;
+};
+declare_vsf_curl_mod(curl_tool_operate)
+#   define curl_tool_operate_ctx    ((struct __curl_tool_operate_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_tool_operate)))
+#   define transfers                (curl_tool_operate_ctx->transfers)
+#else
 extern struct per_transfer *transfers; /* first node */
+#endif
 
 #endif /* HEADER_CURL_TOOL_OPERATE_H */

@@ -73,6 +73,15 @@
 #include "curl_memory.h"
 #include "memdebug.h"
 
+#ifdef __VSF__
+struct __curl_mbedtls_ctx {
+    mbedtls_entropy_context ts_entropy;
+    int entropy_init_initialized;
+};
+define_vsf_curl_mod(curl_mbedtls, sizeof(struct __curl_mbedtls_ctx), VSF_CURL_MOD_MBEDTLS, NULL)
+#   define curl_mbedtls_ctx     ((struct __curl_mbedtls_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_mbedtls)))
+#endif
+
 struct ssl_backend_data {
   mbedtls_ctr_drbg_context ctr_drbg;
   mbedtls_entropy_context entropy;
@@ -96,9 +105,14 @@ struct ssl_backend_data {
 #endif
 
 #if defined(THREADING_SUPPORT)
+#ifdef __VSF__
+#   define ts_entropy               (curl_mbedtls_ctx->ts_entropy)
+#   define entropy_init_initialized (curl_mbedtls_ctx->entropy_init_initialized)
+#else
 static mbedtls_entropy_context ts_entropy;
 
 static int entropy_init_initialized = 0;
+#endif
 
 /* start of entropy_init_mutex() */
 static void entropy_init_mutex(mbedtls_entropy_context *ctx)

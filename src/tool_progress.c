@@ -28,6 +28,10 @@
 /* use our own printf() functions */
 #include "curlx.h"
 
+#ifdef __VSF__
+define_vsf_curl_mod(curl_tool_progress, sizeof(struct __curl_tool_progress_ctx), VSF_CURL_MOD_TOOL_PROGRESS, NULL)
+#endif
+
 /* The point of this function would be to return a string of the input data,
    but never longer than 5 columns (+ one zero byte).
    Add suffix k, M, G when suitable... */
@@ -141,6 +145,15 @@ static void time2str(char *r, curl_off_t seconds)
   }
 }
 
+#ifdef __VSF__
+#   define all_dltotal              (curl_tool_progress_ctx->all_dltotal)
+#   define all_ultotal              (curl_tool_progress_ctx->all_ultotal)
+#   define all_dlalready            (curl_tool_progress_ctx->all_dlalready)
+#   define all_ulalready            (curl_tool_progress_ctx->all_ulalready)
+#   define speedindex               (curl_tool_progress_ctx->speedindex)
+#   define indexwrapped             (curl_tool_progress_ctx->indexwrapped)
+#   define speedstore               (curl_tool_progress_ctx->speedstore)
+#else
 static curl_off_t all_dltotal = 0;
 static curl_off_t all_ultotal = 0;
 static curl_off_t all_dlalready = 0;
@@ -157,6 +170,7 @@ struct speedcount {
 static unsigned int speedindex;
 static bool indexwrapped;
 static struct speedcount speedstore[SPEEDCNT];
+#endif
 
 /*
   |DL% UL%  Dled  Uled  Xfers  Live   Qd Total     Current  Left    Speed
@@ -166,8 +180,13 @@ bool progress_meter(struct GlobalConfig *global,
                     struct timeval *start,
                     bool final)
 {
-  static struct timeval stamp;
+#ifdef __VSF__
+#   define __stamp                  (curl_tool_progress_ctx->progress_meter.stamp)
+#   define header                   (curl_tool_progress_ctx->progress_meter.header)
+#else
+  static struct timeval __stamp;
   static bool header = FALSE;
+#endif
   struct timeval now;
   long diff;
 
@@ -175,7 +194,7 @@ bool progress_meter(struct GlobalConfig *global,
     return FALSE;
 
   now = tvnow();
-  diff = tvdiff(now, stamp);
+  diff = tvdiff(now, __stamp);
 
   if(!header) {
     header = TRUE;
@@ -200,7 +219,7 @@ bool progress_meter(struct GlobalConfig *global,
     curl_off_t all_queued = 0;  /* pending */
     curl_off_t speed = 0;
     unsigned int i;
-    stamp = now;
+    __stamp = now;
 
     /* first add the amounts of the already completed transfers */
     all_dlnow += all_dlalready;
@@ -314,6 +333,10 @@ bool progress_meter(struct GlobalConfig *global,
     return TRUE;
   }
   return FALSE;
+#ifdef __VSF__
+#   undef __stamp
+#   undef header
+#endif
 }
 
 void progress_finalize(struct per_transfer *per)

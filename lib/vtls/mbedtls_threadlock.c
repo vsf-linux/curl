@@ -40,11 +40,23 @@
 /* The last #include file should be: */
 #include "memdebug.h"
 
+#ifdef __VSF__
+struct __curl_mbedtls_threadlock_ctx {
+    MBEDTLS_MUTEX_T *mutex_buf;
+};
+define_vsf_curl_mod(curl_mbedtls_threadlock, sizeof(struct __curl_mbedtls_threadlock_ctx), VSF_CURL_MOD_MBEDTLS_THREADLOCK, NULL)
+#   define curl_mbedtls_threadlock_ctx  ((struct __curl_mbedtls_threadlock_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_mbedtls_threadlock)))
+#endif
+
 /* number of thread locks */
 #define NUMT                    2
 
 /* This array will store all of the mutexes available to Mbedtls. */
+#ifdef __VSF__
+#   define mutex_buf                (curl_mbedtls_threadlock_ctx->mutex_buf)
+#else
 static MBEDTLS_MUTEX_T *mutex_buf = NULL;
+#endif
 
 int Curl_mbedtlsthreadlock_thread_setup(void)
 {

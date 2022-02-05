@@ -31,11 +31,31 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
+#ifdef __VSF__
+struct __curl_tool_convert_ctx {
+    iconv_t inbound_cd;     // = (iconv_t)-1;
+    iconv_t outbound_cd;    // = (iconv_t)-1;
+};
+static void __curl_tool_convert_mod_init(void *ctx)
+{
+    struct __curl_tool_convert_ctx *__tool_convert_ctx = ctx;
+    __tool_convert_ctx->inbound_cd = (iconv_t)-1;
+    __tool_convert_ctx->outbound_cd = (iconv_t)-1;
+}
+define_vsf_curl_mod(curl_tool_convert, sizeof(struct __curl_tool_convert_ctx), VSF_CURL_MOD_TOOL_CONVERT, __curl_tool_convert_mod_init)
+#   define curl_tool_convert_ctx    ((struct __curl_tool_convert_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_tool_convert)))
+#endif
+
 #ifdef HAVE_ICONV
 
 /* curl tool iconv conversion descriptors */
+#ifdef __VSF__
+#   define inbound_cd               (curl_ctx->tool_convert.inbound_cd)
+#   define outbound_cd              (curl_ctx->tool_convert.outbound_cd)
+#else
 static iconv_t inbound_cd  = (iconv_t)-1;
 static iconv_t outbound_cd = (iconv_t)-1;
+#endif
 
 /* set default codesets for iconv */
 #ifndef CURL_ICONV_CODESET_OF_NETWORK

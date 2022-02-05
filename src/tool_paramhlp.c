@@ -37,12 +37,26 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
+#ifdef __VSF__
+struct __curl_tool_paramhlp_ctx {
+    struct {
+        int outnum;
+    } new_getout;
+};
+define_vsf_curl_mod(curl_tool_paramhlp, sizeof(struct __curl_tool_paramhlp_ctx), VSF_CURL_MOD_TOOL_PARAMHLP, NULL)
+#   define curl_tool_paramhlp_ctx   ((struct __curl_tool_paramhlp_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_tool_paramhlp)))
+#endif
+
 struct getout *new_getout(struct OperationConfig *config)
 {
   struct getout *node = calloc(1, sizeof(struct getout));
   struct getout *last = config->url_last;
   if(node) {
+#ifdef __VSF__
+#   define outnum                   (curl_tool_paramhlp_ctx->new_getout.outnum)
+#else
     static int outnum = 0;
+#endif
 
     /* append this new node last in the list */
     if(last)
@@ -55,6 +69,9 @@ struct getout *new_getout(struct OperationConfig *config)
 
     node->flags = config->default_node_flags;
     node->num = outnum++;
+#ifdef __VSF__
+#   undef outnum
+#endif
   }
   return node;
 }

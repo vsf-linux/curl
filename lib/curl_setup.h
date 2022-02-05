@@ -26,6 +26,10 @@
 #define CURL_NO_OLDIES
 #endif
 
+#ifdef __VSF__
+#   include "config_vsf.h"
+#endif
+
 /*
  * Disable Visual Studio warnings:
  * 4127 "conditional expression is constant"

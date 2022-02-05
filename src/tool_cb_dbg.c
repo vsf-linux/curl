@@ -33,6 +33,19 @@
 
 #include "memdebug.h" /* keep this as LAST include */
 
+#ifdef __VSF__
+struct __curl_tool_cb_dbg_ctx {
+    struct {
+        time_t epoch_offset;
+        int known_offset;
+        bool newl;
+        bool traced_data;
+    } tool_debug_cb;
+};
+define_vsf_curl_mod(curl_tool_cb_dbg, sizeof(struct __curl_tool_cb_dbg_ctx), VSF_CURL_MOD_TOOL_CB_DBG, NULL)
+#   define curl_tool_cb_dbg_ctx     ((struct __curl_tool_cb_dbg_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_tool_cb_dbg)))
+#endif
+
 static void dump(const char *timebuf, const char *text,
                  FILE *stream, const unsigned char *ptr, size_t size,
                  trace tracetype, curl_infotype infotype);
@@ -57,8 +70,13 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
 
   if(config->tracetime) {
     struct tm *now;
+#ifdef __VSF__
+#   define epoch_offset             (curl_tool_cb_dbg_ctx->tool_debug_cb.epoch_offset)
+#   define known_offset             (curl_tool_cb_dbg_ctx->tool_debug_cb.known_offset)
+#else
     static time_t epoch_offset;
     static int    known_offset;
+#endif
     tv = tvnow();
     if(!known_offset) {
       epoch_offset = time(NULL) - tv.tv_sec;
@@ -69,6 +87,10 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
     now = localtime(&secs);  /* not thread safe but we don't care */
     msnprintf(timebuf, sizeof(timebuf), "%02d:%02d:%02d.%06ld ",
               now->tm_hour, now->tm_min, now->tm_sec, (long)tv.tv_usec);
+#ifdef __VSF__
+#   undef epoch_offset
+#   undef known_offset
+#endif
   }
   else
     timebuf[0] = 0;
@@ -102,8 +124,13 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
     static const char * const s_infotype[] = {
       "*", "<", ">", "{", "}", "{", "}"
     };
+#ifdef __VSF__
+#   define newl                     (curl_tool_cb_dbg_ctx->tool_debug_cb.newl)
+#   define traced_data              (curl_tool_cb_dbg_ctx->tool_debug_cb.traced_data)
+#else
     static bool newl = FALSE;
     static bool traced_data = FALSE;
+#endif
 
     switch(type) {
     case CURLINFO_HEADER_OUT:
@@ -160,6 +187,10 @@ int tool_debug_cb(CURL *handle, curl_infotype type,
     }
 
     return 0;
+#ifdef __VSF__
+#   undef newl
+#   undef traced_data
+#endif
   }
 
 #ifdef CURL_DOES_CONVERSIONS

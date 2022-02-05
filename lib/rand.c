@@ -36,12 +36,28 @@
 #include "curl_memory.h"
 #include "memdebug.h"
 
+#ifdef __VSF__
+struct __curl_rand_ctx {
+    struct {
+        unsigned int randseed;
+        bool seeded;
+    } randit;
+};
+define_vsf_curl_mod(curl_rand, sizeof(struct __curl_rand_ctx), VSF_CURL_MOD_RAND, NULL)
+#   define curl_rand_ctx            ((struct __curl_rand_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_rand)))
+#endif
+
 static CURLcode randit(struct Curl_easy *data, unsigned int *rnd)
 {
   unsigned int r;
   CURLcode result = CURLE_OK;
+#ifdef __VSF__
+#   define randseed                 (curl_rand_ctx->randit.randseed)
+#   define seeded                   (curl_rand_ctx->randit.seeded)
+#else
   static unsigned int randseed;
   static bool seeded = FALSE;
+#endif
 
 #ifdef CURLDEBUG
   char *force_entropy = getenv("CURL_ENTROPY");
@@ -99,6 +115,10 @@ static CURLcode randit(struct Curl_easy *data, unsigned int *rnd)
   r = randseed = randseed * 1103515245 + 12345;
   *rnd = (r << 16) | ((r >> 16) & 0xFFFF);
   return CURLE_OK;
+#ifdef __VSF__
+#   undef randseed
+#   undef seeded
+#endif
 }
 
 /*
