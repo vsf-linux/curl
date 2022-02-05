@@ -110,7 +110,7 @@ static void zstd_version(char *buf, size_t bufsz)
 
 char *curl_version(void)
 {
-#ifndef __VSF__
+#ifdef __VSF__
 #   define out                      (curl_ctx->version.curl_version.__out)
 #else
   static char out[300];
@@ -296,7 +296,7 @@ char *curl_version(void)
   *outp = 0;
 
   return out;
-#ifndef __VSF__
+#ifdef __VSF__
 #   undef out
 #endif
 }
