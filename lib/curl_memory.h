@@ -98,28 +98,11 @@ typedef void *(*curl_calloc_callback)(size_t nmemb, size_t size);
 #define CURL_DID_MEMORY_FUNC_TYPEDEFS
 #endif
 
-#ifdef __VSF__
-struct __curl_memory_ctx {
-    curl_malloc_callback Curl_cmalloc;
-    curl_free_callback Curl_cfree;
-    curl_realloc_callback Curl_crealloc;
-    curl_strdup_callback Curl_cstrdup;
-    curl_calloc_callback Curl_ccalloc;
-};
-declare_vsf_curl_mod(curl_memory)
-#   define curl_memory_ctx          ((struct __curl_memory_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_memory)))
-#   define Curl_cmalloc             (curl_memory_ctx->Curl_cmalloc)
-#   define Curl_cfree               (curl_memory_ctx->Curl_cfree)
-#   define Curl_crealloc            (curl_memory_ctx->Curl_crealloc)
-#   define Curl_cstrdup             (curl_memory_ctx->Curl_cstrdup)
-#   define Curl_ccalloc             (curl_memory_ctx->Curl_ccalloc)
-#else
 extern curl_malloc_callback Curl_cmalloc;
 extern curl_free_callback Curl_cfree;
 extern curl_realloc_callback Curl_crealloc;
 extern curl_strdup_callback Curl_cstrdup;
 extern curl_calloc_callback Curl_ccalloc;
-#endif
 #if defined(WIN32) && defined(UNICODE)
 extern curl_wcsdup_callback Curl_cwcsdup;
 #endif

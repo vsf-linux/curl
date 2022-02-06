@@ -27,14 +27,6 @@
 #include "curl_memory.h"
 #include "memdebug.h"
 
-#ifdef __VSF__
-struct __curl_keylog_ctx {
-    FILE *keylog_file_fp;
-};
-define_vsf_curl_mod(curl_keylog, sizeof(struct __curl_keylog_ctx), VSF_CURL_MOD_KEYLOG, NULL)
-#   define curl_keylog_ctx      ((struct __curl_keylog_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_keylog)))
-#endif
-
 #define KEYLOG_LABEL_MAXLEN (sizeof("CLIENT_HANDSHAKE_TRAFFIC_SECRET") - 1)
 
 #define CLIENT_RANDOM_SIZE  32
@@ -48,11 +40,7 @@ define_vsf_curl_mod(curl_keylog, sizeof(struct __curl_keylog_ctx), VSF_CURL_MOD_
 
 
 /* The fp for the open SSLKEYLOGFILE, or NULL if not open */
-#ifdef __VSF__
-#   define keylog_file_fp           (curl_keylog_ctx->keylog_file_fp)
-#else
 static FILE *keylog_file_fp;
-#endif
 
 void
 Curl_tls_keylog_open(void)

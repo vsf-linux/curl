@@ -69,19 +69,6 @@
 #include "curl_memory.h"
 #include "memdebug.h"
 
-#ifdef __VSF__
-struct __curl_vtls_ctx {
-    bool init_ssl;
-    struct {
-        const struct Curl_ssl *selected;
-        char backends[200];
-        size_t backends_len;
-    } multissl_version;
-};
-define_vsf_curl_mod(curl_vtls, sizeof(struct __curl_vtls_ctx), VSF_CURL_MOD_VTLS, NULL)
-#   define curl_vtls_ctx  ((struct __curl_vtls_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_vtls)))
-#endif
-
 /* convenience macro to check if this handle is using a shared SSL session */
 #define SSLSESSION_SHARED(data) (data->share &&                        \
                                  (data->share->specifier &             \
@@ -237,11 +224,7 @@ int Curl_ssl_backend(void)
 #ifdef USE_SSL
 
 /* "global" init done? */
-#ifdef __VSF__
-#   define init_ssl                 (curl_vtls_ctx->init_ssl)
-#else
 static bool init_ssl = FALSE;
-#endif
 
 /**
  * Global SSL init
@@ -1360,15 +1343,9 @@ static const struct Curl_ssl *available_backends[] = {
 
 static size_t multissl_version(char *buffer, size_t size)
 {
-#ifdef __VSF__
-#   define selected                 (curl_vtls_ctx->multissl_version.selected)
-#   define backends                 (curl_vtls_ctx->multissl_version.backends)
-#   define backends_len             (curl_vtls_ctx->multissl_version.backends_len)
-#else
   static const struct Curl_ssl *selected;
   static char backends[200];
   static size_t backends_len;
-#endif
   const struct Curl_ssl *current;
 
   current = Curl_ssl == &Curl_ssl_multi ? available_backends[0] : Curl_ssl;
@@ -1406,11 +1383,6 @@ static size_t multissl_version(char *buffer, size_t size)
 
   strcpy(buffer, backends);
   return backends_len;
-#ifdef __VSF__
-#   undef selected
-#   undef backends
-#   undef backends_len
-#endif
 }
 
 static int multissl_setup(const struct Curl_ssl *backend)

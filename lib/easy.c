@@ -87,40 +87,8 @@
 #include "memdebug.h"
 
 /* true globals -- for curl_global_init() and curl_global_cleanup() */
-#ifdef __VSF__
-void __curl_memory_init(void *ctx)
-{
-#if VSF_LINUX_LIBC_CFG_WRAPPER == ENABLED
-  Curl_cmalloc = (curl_malloc_callback)VSF_LINUX_LIBC_WRAPPER(malloc);
-  Curl_cfree = (curl_free_callback)VSF_LINUX_LIBC_WRAPPER(free);
-  Curl_crealloc = (curl_realloc_callback)VSF_LINUX_LIBC_WRAPPER(realloc);
-  Curl_cstrdup = (curl_strdup_callback)VSF_LINUX_LIBC_WRAPPER(strdup);
-  Curl_ccalloc = (curl_calloc_callback)VSF_LINUX_LIBC_WRAPPER(calloc);
-#else
-  Curl_cmalloc = (curl_malloc_callback)malloc;
-  Curl_cfree = (curl_free_callback)free;
-  Curl_crealloc = (curl_realloc_callback)realloc;
-  Curl_cstrdup = (curl_strdup_callback)strdup;
-  Curl_ccalloc = (curl_calloc_callback)calloc;
-#endif
-}
-define_vsf_curl_mod(curl_memory, sizeof(struct __curl_memory_ctx), VSF_CURL_MOD_MEMORY, __curl_memory_init)
-
-struct __curl_easy_ctx {
-    unsigned int initialized;
-    long init_flags;
-#ifdef DEBUGBUILD
-    char *leakpointer;
-#endif
-};
-define_vsf_curl_mod(curl_easy, sizeof(struct __curl_easy_ctx), VSF_CURL_MOD_EASY, NULL)
-#   define curl_easy_ctx            ((struct __curl_easy_ctx *)vsf_linux_dynlib_ctx(&vsf_curl_mod_name(curl_easy)))
-#   define initialized              (curl_easy_ctx->initialized)
-#   define init_flags               (curl_easy_ctx->init_flags)
-#else
 static unsigned int  initialized;
 static long          init_flags;
-#endif
 
 /*
  * strdup (and other memory functions) is redefined in complicated
@@ -143,7 +111,13 @@ static long          init_flags;
  * If a memory-using function (like curl_getenv) is used before
  * curl_global_init() is called, we need to have these pointers set already.
  */
-#ifndef __VSF__
+#if defined(__VSF__) && VSF_LINUX_LIBC_CFG_WRAPPER == ENABLED
+curl_malloc_callback Curl_cmalloc = (curl_malloc_callback)VSF_LINUX_LIBC_WRAPPER(malloc);
+curl_free_callback Curl_cfree = (curl_free_callback)VSF_LINUX_LIBC_WRAPPER(free);
+curl_realloc_callback Curl_crealloc = (curl_realloc_callback)VSF_LINUX_LIBC_WRAPPER(realloc);
+curl_strdup_callback Curl_cstrdup = (curl_strdup_callback)VSF_LINUX_LIBC_WRAPPER(strdup);
+curl_calloc_callback Curl_ccalloc = (curl_calloc_callback)VSF_LINUX_LIBC_WRAPPER(calloc);
+#else
 curl_malloc_callback Curl_cmalloc = (curl_malloc_callback)malloc;
 curl_free_callback Curl_cfree = (curl_free_callback)free;
 curl_realloc_callback Curl_crealloc = (curl_realloc_callback)realloc;
@@ -159,11 +133,7 @@ curl_wcsdup_callback Curl_cwcsdup = Curl_wcsdup;
 #endif
 
 #ifdef DEBUGBUILD
-#ifdef __VSF__
-#   define leakpointer              (curl_easy_ctx->leakpointer)
-#else
 static char *leakpointer;
-#endif
 #endif
 
 /**
