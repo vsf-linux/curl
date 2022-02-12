@@ -117,9 +117,9 @@ typedef void CURLSH;
      (__has_declspec_attribute(dllexport) && \
       __has_declspec_attribute(dllimport))
 #  if defined(BUILDING_LIBCURL)
-#    define CURL_EXTERN  __declspec(dllexport)
+#    define CURL_EXTERN  //__declspec(dllexport)
 #  else
-#    define CURL_EXTERN  __declspec(dllimport)
+#    define CURL_EXTERN  //__declspec(dllimport)
 #  endif
 #elif defined(BUILDING_LIBCURL) && defined(CURL_HIDDEN_SYMBOLS)
 #  define CURL_EXTERN CURL_EXTERN_SYMBOL
