@@ -281,6 +281,7 @@ static void MD4_Final(unsigned char *result, MD4_CTX *ctx);
 /*
  * The MD4 transformation for all three rounds.
  */
+#undef STEP
 #define STEP(f, a, b, c, d, x, s) \
         (a) += f((b), (c), (d)) + (x); \
         (a) = (((a) << (s)) | (((a) & 0xffffffff) >> (32 - (s))));
